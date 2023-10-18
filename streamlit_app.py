@@ -70,18 +70,25 @@ def download_data(source, credentials, directory):
                     s3.download_file(s3_bucket, file_name, local_file_path)
                 else:
                     os.makedirs(local_file_path, exist_ok=True)  # Create directory structure if the object is a directory
-                
+
         elif source == 'sftp':
-            transport = paramiko.Transport((credentials['hostname'], 22))
-            transport.connect(username=credentials['username'], password=credentials['password'])
-            sftp = transport.open_sftp()
-            remote_path = directory
-            files = sftp.listdir(remote_path)
-            for file in files:
-                remote_file_path = os.path.join(remote_path, file)
-                local_file_path = os.path.join(local_dir, file)
-                sftp.get(remote_file_path, local_file_path)
-            sftp.close()
+            try:
+                transport = paramiko.Transport((credentials['hostname'], 22))
+                transport.connect(username=credentials['username'], password=credentials['password'])
+                sftp = paramiko.SFTPClient.from_transport(transport)  # Correct way to create SFTP client
+                remote_path = directory
+                files = sftp.listdir(remote_path)
+                for file in files:
+                    remote_file_path = os.path.join(remote_path, file)
+                    local_file_path = os.path.join(local_dir, file)
+                    sftp.get(remote_file_path, local_file_path)
+                sftp.close()
+            except Exception as e:
+                error_message = f"An error occurred: {str(e)}"
+                st.error(error_message)
+                raise Exception(error_message)
+            finally:
+                transport.close()  # Ensure the transport is closed
             
         elif source == 'git':
             repo = git.Repo.clone_from(credentials['repo_url'], to_path='./repo', branch='master')
