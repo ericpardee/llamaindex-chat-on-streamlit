@@ -12,6 +12,11 @@ import shutil
 import botocore.exceptions
 import zipfile
 
+# Constants
+SFTP_PORT = 22
+LOCAL_DIR = './data'
+UPLOAD_ZIP_FILE_NAME = 'uploaded.zip'
+
 st.set_page_config(page_title="Chat with the YOUR docs", page_icon="🦙", layout="centered", initial_sidebar_state="auto", menu_items=None)
 openai.api_key = st.secrets.openai_key
 st.title("Chat with YOUR docs")
@@ -50,10 +55,8 @@ def get_user_inputs():
 def download_data(source, credentials, directory):
     st.info(f"Starting download from {source}...")
     
-    local_dir = './data'
-    
-    if not os.path.exists(local_dir):
-        os.makedirs(local_dir)
+    if not os.path.exists(LOCAL_DIR):
+        os.makedirs(LOCAL_DIR)
 
     try:
         if source == 's3':
@@ -65,7 +68,7 @@ def download_data(source, credentials, directory):
             s3_bucket = credentials['bucket_name']
             for obj in s3.list_objects_v2(Bucket=s3_bucket, Prefix=directory)['Contents']:
                 file_name = obj['Key']
-                local_file_path = os.path.join(local_dir, file_name.split('/')[-1])
+                local_file_path = os.path.join(LOCAL_DIR, file_name.split('/')[-1])
                 if obj['Size'] > 0:  # This will check if the object is a file (size > 0) or a directory (size == 0)
                     s3.download_file(s3_bucket, file_name, local_file_path)
                 else:
@@ -73,14 +76,14 @@ def download_data(source, credentials, directory):
 
         elif source == 'sftp':
             try:
-                transport = paramiko.Transport((credentials['hostname'], 22))
+                transport = paramiko.Transport((credentials['hostname'], SFTP_PORT))
                 transport.connect(username=credentials['username'], password=credentials['password'])
                 sftp = paramiko.SFTPClient.from_transport(transport)  # Correct way to create SFTP client
                 remote_path = directory
                 files = sftp.listdir(remote_path)
                 for file in files:
                     remote_file_path = os.path.join(remote_path, file)
-                    local_file_path = os.path.join(local_dir, file)
+                    local_file_path = os.path.join(LOCAL_DIR, file)
                     sftp.get(remote_file_path, local_file_path)
                 sftp.close()
             except Exception as e:
@@ -97,7 +100,7 @@ def download_data(source, credentials, directory):
                 for file in files:
                     source_file_path = os.path.join(root, file)
                     rel_path = os.path.relpath(source_file_path, './repo')
-                    local_file_path = os.path.join(local_dir, rel_path)
+                    local_file_path = os.path.join(LOCAL_DIR, rel_path)
                     os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
                     os.rename(source_file_path, local_file_path)
             shutil.rmtree('./repo')
@@ -105,11 +108,11 @@ def download_data(source, credentials, directory):
         elif source == 'zip':
             if 'uploaded_file' in st.session_state:
                 with st.spinner(text="Uploading and extracting zip file..."):
-                    zip_path = os.path.join(local_dir, "uploaded.zip")
+                    zip_path = os.path.join(LOCAL_DIR, UPLOAD_ZIP_FILE_NAME)
                     with open(zip_path, "wb") as f:
                         f.write(st.session_state.uploaded_file.getbuffer())
                     with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                        zip_ref.extractall(local_dir)
+                        zip_ref.extractall(LOCAL_DIR)
                     os.remove(zip_path)  # Optionally remove the zip file after extraction
                    
     except botocore.exceptions.NoCredentialsError as e:
@@ -130,8 +133,8 @@ def download_data(source, credentials, directory):
 @st.cache_resource(show_spinner=False)
 def load_data(data_source, credentials, directory):
     download_data(data_source, credentials, directory)
-    with st.spinner(text="Loading and indexing the Streamlit docs – hang tight! This should take 1-2 minutes."):
-        reader = SimpleDirectoryReader(input_dir="./data", recursive=True)
+    with st.spinner(text="Loading and indexing YOUR docs – hang tight! This should take 1-2 minutes."):
+        reader = SimpleDirectoryReader(input_dir=LOCAL_DIR, recursive=True)
         docs = reader.load_data()
         service_context = ServiceContext.from_defaults(
             llm=OpenAI(model="gpt-4", 
