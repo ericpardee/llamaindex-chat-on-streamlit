@@ -9,14 +9,16 @@ import git
 import os
 import pandas as pd
 import shutil
-import botocore.exceptions 
+import botocore.exceptions
+import zipfile
 
-st.set_page_config(page_title="Chat with the YOUR docs, powered by LlamaIndex", page_icon="🦙", layout="centered", initial_sidebar_state="auto", menu_items=None)
+st.set_page_config(page_title="Chat with the YOUR docs", page_icon="🦙", layout="centered", initial_sidebar_state="auto", menu_items=None)
 openai.api_key = st.secrets.openai_key
-st.title("Chat with YOUR docs, powered by LlamaIndex 💬🦙")
+st.title("Chat with YOUR docs")
+st.header("Powered by LlamaIndex 💬🦙 and GPT-4")
 
 def get_user_inputs():
-    data_source = st.selectbox('Select Data Source', ['s3', 'sftp', 'git'])
+    data_source = st.selectbox('Select Data Source', ['zip', 's3', 'sftp', 'git'])
 
     credentials = {}
     if data_source == 's3':
@@ -32,8 +34,17 @@ def get_user_inputs():
     elif data_source == 'git':
         credentials['repo_url'] = st.text_input('Repository URL')
         credentials['access_token'] = st.text_input('Access Token', type='password')
+        
+    elif data_source == 'zip':
+        uploaded_file = st.file_uploader("Choose a zip file containing .txt, .md, or .pdf files", type="zip")
+        if uploaded_file is not None:
+            st.session_state.uploaded_file = uploaded_file
 
-    directory = st.text_input('Directory Path')
+    if data_source != 'zip':
+        directory = st.text_input('Directory Path')
+    else:
+        directory = None  # Set directory to None if 'zip' is selected
+
     return data_source, credentials, directory
 
 def download_data(source, credentials, directory):
@@ -83,6 +94,17 @@ def download_data(source, credentials, directory):
                     os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
                     os.rename(source_file_path, local_file_path)
             shutil.rmtree('./repo')
+
+        elif source == 'zip':
+            if 'uploaded_file' in st.session_state:
+                with st.spinner(text="Uploading and extracting zip file..."):
+                    zip_path = os.path.join(local_dir, "uploaded.zip")
+                    with open(zip_path, "wb") as f:
+                        f.write(st.session_state.uploaded_file.getbuffer())
+                    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                        zip_ref.extractall(local_dir)
+                    os.remove(zip_path)  # Optionally remove the zip file after extraction
+                   
     except botocore.exceptions.NoCredentialsError as e:
         error_message = f"Credentials error: {str(e)}"
         st.error(error_message)
@@ -106,7 +128,7 @@ def load_data(data_source, credentials, directory):
         docs = reader.load_data()
         service_context = ServiceContext.from_defaults(
             llm=OpenAI(model="gpt-4", 
-                       temperature=0.5,
+                       temperature=0,
                        system_prompt="You are an expert on the Streamlit Python library and your job is to answer technical \
                            questions. Assume that all questions are related to the Streamlit Python library. Keep your answers technical \
                                and based on facts – do not hallucinate features.")
