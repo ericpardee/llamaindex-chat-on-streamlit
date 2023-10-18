@@ -16,11 +16,12 @@ import zipfile
 SFTP_PORT = 22
 LOCAL_DIR = './data'
 UPLOAD_ZIP_FILE_NAME = 'uploaded.zip'
+CHAT_ENGINE = 'condense_question' # https://gpt-index.readthedocs.io/en/latest/core_modules/query_modules/chat_engines/root.html
 
 st.set_page_config(page_title="Chat with the YOUR docs", page_icon="🦙", layout="centered", initial_sidebar_state="auto", menu_items=None)
 openai.api_key = st.secrets.openai_key
 st.title("Chat with YOUR docs")
-st.header("Powered by LlamaIndex 💬🦙 and GPT-4")
+st.header("Powered by LlamaIndex 💬🦙 and OpenAI")
 
 def get_user_inputs():
     data_source = st.selectbox('Select Data Source', ['zip', 's3', 'sftp', 'git'])
@@ -50,7 +51,18 @@ def get_user_inputs():
     else:
         directory = None  # Set directory to None if 'zip' is selected
 
-    return data_source, credentials, directory
+    # Advanced Settings
+    with st.expander("Advanced Settings"):
+        model = st.selectbox('Select Model', ['gpt-3', 'gpt-4'], index=1)  # Default to gpt-4
+        temperature = st.slider('Temperature', min_value=0.0, max_value=1.0, value=0.0, step=0.1)
+        system_prompt = st.text_area('System Prompt',
+                                     value="",  # Default value
+                                     placeholder="You are an expert in healthcare IT security and compliance and your job is to answer technical questions. Assume that all questions are related to the healthcare IT security and compliance. Keep your answers technical and based on facts – do not hallucinate features.",
+                                     height=100,
+                                     help="The system prompt is used to provide context to the model. It should be a short paragraph \
+                                        to help the model understand the domain of the data.")
+
+    return data_source, credentials, directory, model, temperature, system_prompt
 
 def download_data(source, credentials, directory):
     st.info(f"Starting download from {source}...")
@@ -131,17 +143,16 @@ def download_data(source, credentials, directory):
     st.info("Download completed.")
 
 @st.cache_resource(show_spinner=False)
-def load_data(data_source, credentials, directory):
+def load_data(data_source, credentials, directory, model, temperature, system_prompt):
     download_data(data_source, credentials, directory)
     with st.spinner(text="Loading and indexing YOUR docs – hang tight! This should take 1-2 minutes."):
         reader = SimpleDirectoryReader(input_dir=LOCAL_DIR, recursive=True)
         docs = reader.load_data()
+        print(model, temperature, system_prompt)
         service_context = ServiceContext.from_defaults(
-            llm=OpenAI(model="gpt-4", 
-                       temperature=0,
-                       system_prompt="You are an expert on the Streamlit Python library and your job is to answer technical \
-                           questions. Assume that all questions are related to the Streamlit Python library. Keep your answers technical \
-                               and based on facts – do not hallucinate features.")
+            llm=OpenAI(model=model,
+                       temperature=temperature,
+                       system_prompt=system_prompt)
             )
         index = VectorStoreIndex.from_documents(docs, service_context=service_context)
         return index
@@ -151,11 +162,11 @@ if "messages" not in st.session_state.keys(): # Initialize the chat messages his
         {"role": "assistant", "content": "Ask me a question about YOUR docs!"}
     ]
 
-data_source, credentials, directory = get_user_inputs()
+data_source, credentials, directory, model, temperature, system_prompt = get_user_inputs()
 
 if st.button('Load Data'):
-    index = load_data(data_source, credentials, directory)
-    st.session_state.chat_engine = index.as_chat_engine(chat_mode="condense_question", verbose=True)
+    index = load_data(data_source, credentials, directory, model, temperature, system_prompt)  # Pass the additional arguments here
+    st.session_state.chat_engine = index.as_chat_engine(chat_mode=CHAT_ENGINE, verbose=True)
 
 if "chat_engine" in st.session_state:
     prompt = st.chat_input("Your question")
