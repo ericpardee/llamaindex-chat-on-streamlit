@@ -1,3 +1,7 @@
 streamlit
 openai
 llama-index
+boto3
+paramiko
+gitpython
+pandas
