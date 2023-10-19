@@ -1,6 +1,6 @@
-# 🦙📚 LlamaIndex - Chat with the Streamlit docs
+# 🦙📚 LlamaIndex - Chat with YOUR docs
 
-Build a chatbot powered by LlamaIndex that augments GPT 3.5 with the content of the Streamlit docs (or your own data).
+This chatbot is powered by LlamaIndex, and it augments OpenAI GPT 3.5 or 4 with your own data.
 
 ## Overview of the App
 
@@ -15,11 +15,12 @@ Build a chatbot powered by LlamaIndex that augments GPT 3.5 with the content of 
 
 ## Get an OpenAI API key
 
-You can get your own OpenAI API key by following the following instructions:
-1. Go to https://platform.openai.com/account/api-keys.
-2. Click on the `+ Create new secret key` button.
-3. Next, enter an identifier name (optional) and click on the `Create secret key` button.
+You can get your own OpenAI API key by following these instructions:
+
+1. Go to <https://platform.openai.com/account/api-keys>
+2. Click on the `+ Create new secret key` button
+3. Next, enter an identifier name (optional) and click on the `Create secret key` button
 
 ## Try out the app
 
-Once the app is loaded, enter your question about the Streamlit library and wait for a response.
+Once the app is loaded, select and load your data, wait for the index to build, then enter your question about the content of the docs you provided and wait for a response.
