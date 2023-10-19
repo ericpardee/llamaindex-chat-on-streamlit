@@ -11,6 +11,7 @@ import pandas as pd
 import shutil
 import botocore.exceptions
 import zipfile
+import pypdf
 
 # Constants
 SFTP_PORT = 22
