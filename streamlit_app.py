@@ -40,6 +40,7 @@ def get_user_inputs():
     elif data_source == 'git':
         credentials['repo_url'] = st.text_input('Repository URL')
         credentials['access_token'] = st.text_input('Access Token', type='password')
+        credentials['branch'] = st.text_input('Branch', value='main')  # Default to 'main'
         
     elif data_source == 'zip':
         uploaded_file = st.file_uploader("Choose a zip file containing .txt, .md, or .pdf files", type="zip")
@@ -106,7 +107,11 @@ def download_data(source, credentials, directory):
                 transport.close()  # Ensure the transport is closed
             
         elif source == 'git':
-            repo = git.Repo.clone_from(credentials['repo_url'], to_path='./repo', branch='master')
+            repo = git.Repo.clone_from(
+                credentials['repo_url'],
+                to_path='./repo',
+                branch=credentials['branch']  # Use the user-specified branch
+            )
             git_dir_path = os.path.join('./repo', directory)
             for root, dirs, files in os.walk(git_dir_path):
                 for file in files:
