@@ -54,8 +54,14 @@ def get_user_inputs():
 
     # Advanced Settings
     with st.expander("Advanced Settings"):
-        model = st.selectbox('Select Model', ['gpt-3', 'gpt-4'], index=1)  # Default to gpt-4
-        temperature = st.slider('Temperature', min_value=0.0, max_value=1.0, value=0.0, step=0.1)
+        model = st.selectbox('Select Model', ['gpt-3.5-turbo', 'gpt-4'], index=1)  # Default to gpt-4
+        temperature = st.slider('Temperature',
+                                min_value=0.0,
+                                max_value=1.0,
+                                value=0.0,
+                                step=0.1,
+                                help="The temperature parameter controls randomness in boltzmann sampling. Lower temperature results in less random completions. As the temperature approaches zero, the model will become deterministic and repetitive. Higher temperature results in more random completions."
+                                )
         system_prompt = st.text_area('System Prompt',
                                      value="",  # Default value
                                      placeholder="You are an expert in healthcare IT security and compliance and your job is to answer technical questions. Assume that all questions are related to the healthcare IT security and compliance. Keep your answers technical and based on facts – do not hallucinate features.",
@@ -148,18 +154,17 @@ def download_data(source, credentials, directory):
     st.info("Download completed.")
 
 @st.cache_resource(show_spinner=False)
-def load_data(data_source, credentials, directory, model, temperature, system_prompt):
+def load_and_index_data(data_source, credentials, directory, model, temperature, system_prompt):
     download_data(data_source, credentials, directory)
     with st.spinner(text="Loading and indexing YOUR docs – hang tight! This should take 1-2 minutes."):
         reader = SimpleDirectoryReader(input_dir=LOCAL_DIR, recursive=True)
         docs = reader.load_data()
-        print(model, temperature, system_prompt)
         service_context = ServiceContext.from_defaults(
             llm=OpenAI(model=model,
                        temperature=temperature,
                        system_prompt=system_prompt)
             )
-        index = VectorStoreIndex.from_documents(docs, service_context=service_context)
+        index = VectorStoreIndex.from_documents(docs, service_context=service_context) # https://docs.llamaindex.ai/en/stable/core_modules/data_modules/index/vector_store_guide.html
         return index
 
 if "messages" not in st.session_state.keys(): # Initialize the chat messages history
@@ -170,7 +175,7 @@ if "messages" not in st.session_state.keys(): # Initialize the chat messages his
 data_source, credentials, directory, model, temperature, system_prompt = get_user_inputs()
 
 if st.button('Load Data'):
-    index = load_data(data_source, credentials, directory, model, temperature, system_prompt)  # Pass the additional arguments here
+    index = load_and_index_data(data_source, credentials, directory, model, temperature, system_prompt)  # Pass the additional arguments here
     st.session_state.chat_engine = index.as_chat_engine(chat_mode=CHAT_ENGINE, verbose=True)
 
 if "chat_engine" in st.session_state:
