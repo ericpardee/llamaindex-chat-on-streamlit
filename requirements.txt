@@ -1,7 +1,9 @@
-streamlit
-openai
-llama-index
-boto3
-paramiko
-gitpython
-pandas
+boto3>=1.28.65,<1.29.0
+botocore>=1.31.65,<1.32.0
+GitPython>=3.1.40,<3.2.0
+llama_index>=0.8.46,<0.9.0
+openai>=0.28.1,<0.29.0
+pandas>=2.1.1,<2.2.0
+paramiko>=3.3.1,<3.4.0
+pypdf>=3.16.4,<3.17.0
+streamlit>=1.27.2,<1.28.0
